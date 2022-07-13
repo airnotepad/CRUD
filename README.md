@@ -1,7 +1,7 @@
 # CRUD
 Простой многоуровневое приложение для создания/редактирования/удаления заказов.
 
-> Строка подключения устанавливается в Infrastructure > DependencyInjection.cs
+> Строка подключения к базе данных устанавливается в Infrastructure > DependencyInjection.cs
 
 ## База данных
 - Orders
