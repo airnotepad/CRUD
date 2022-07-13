@@ -1,0 +1,218 @@
+﻿@{
+    ViewData["Title"] = "Update/Add";
+}
+
+<div class="card mt-3">
+    <div class="card-body">
+
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">ID</label>
+            <div class="col">
+                <input type="text" class="form-control-plaintext" id="id" readonly>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Дата</label>
+            <div class="col">
+                <input type="date" class="form-control" id="date">
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Контракт</label>
+            <div class="col">
+                <input type="text" class="form-control" id="number">
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Поставщик</label>
+            <div class="col">
+                <select class="form-select" id="provider" onchange="updateProvider()">
+                    @foreach (var provider in ViewBag.Providers)
+                    {
+                        <option value="@provider.Id">@provider.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <button type="button" class="btn btn-primary" onclick="showModal(null)">Добавить позицию в заказ</button>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <table class="table table-striped table-sm" id="table">
+                <thead>
+                    <tr>
+                        <th scope="col" data-field="name">Наименование</th>
+                        <th scope="col" data-field="quantity">Количество</th>
+                        <th scope="col" data-field="unit">Ед.</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <button type="button" class="btn btn-primary" onclick="saveOrder()">Сохранить изменения</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="modal fade" id="modalEdit" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Форма редактирования/добавления в заказ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <input type="text" id="inputIndex" hidden>
+
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Наименование</label>
+                    <div class="col">
+                        <input type="text" class="form-control" id="inputName">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Количество</label>
+                    <div class="col">
+                        <input type="number" class="form-control" id="inputQuantity">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Единицы</label>
+                    <div class="col">
+                        <input type="text" class="form-control" id="inputUnit">
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" onclick="removeOrderItem()" id="deleteButton">Удалить</button>
+                <button type="button" class="btn btn-primary" onclick="pushOrUpdateOrderItem()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var data = @Json.Serialize(ViewBag.Data);
+        var table = $('#table');
+        var modal = new bootstrap.Modal(document.getElementById('modalEdit'))
+
+        $(function () {
+            table.bootstrapTable({ onClickRow: showModal });
+            fillForm(data);
+        })
+
+        function fillForm(data) {
+            $('#id').val(data.id);
+            $('#date').val(moment(data.date).format("YYYY-MM-DD"));
+            $('#number').val(data.number);
+            $('#provider').val(data.providerId);
+            table.bootstrapTable('load', data.items);
+        }
+
+        function showModal(row) {
+            modal.show();
+            fillModal(row);
+        }
+
+        function fillModal(item) {
+            if (item == null) {
+                item = {}
+                $('#deleteButton').hide();
+            }
+            else {
+                $('#deleteButton').show();
+            }
+
+            $('#inputIndex').val(data.items.indexOf(item));
+            $('#inputName').val(item.name);
+            $('#inputQuantity').val(item.quantity);
+            $('#inputUnit').val(item.unit);
+        }
+
+        function removeOrderItem() {
+            let index = $('#inputIndex').val();
+
+            data.items.splice(index, 1);
+
+            fillForm(data);
+
+            modal.hide();
+        }
+
+        function pushOrUpdateOrderItem() {
+
+            let item =
+            {
+                name: $('#inputName').val(),
+                quantity: $('#inputQuantity').val(),
+                unit: $('#inputUnit').val()
+            }
+
+            let index = $('#inputIndex').val();
+            if (index == "-1") {
+                //add
+                data.items.push(item);
+            }
+            else {
+                //update
+                data.items[index].name = item.name;
+                data.items[index].quantity = item.quantity;
+                data.items[index].unit = item.unit;
+            }
+
+
+            fillForm(data);
+
+            modal.hide();
+        }
+
+        function updateProvider() {
+            let id = $('#provider').val();
+            data.providerId = parseInt(id);
+        }
+
+        function saveOrder() {
+            data.date = $('#date').val();
+            data.number = $('#number').val();
+
+            let url = data.id == undefined ? '/api/create' : '/api/update';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then((response) => {
+                    return response.json();
+                })
+                .then((json) => {
+                    console.log(json);
+                    if (json.ok) {
+                        alert('Успешно сохранено');
+                    }
+                    else {
+                        alert(`Ошибка при сохранении: ${json.metadata.message}`);
+                    }
+                });
+        }
+    </script>
+}

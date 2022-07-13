@@ -1,0 +1,218 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a type="button" class="btn btn-sm btn-outline-secondary" asp-controller="Orders" asp-action="Update">Add new order</a>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-center flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div class="me-1">
+        <div class="row">
+            <div class="col">
+                <div class="mb-1">
+                    <select class="selectpicker" title="Поставщик" id="providersSelect" multiple>
+                        @foreach (var provider in ViewBag.Providers)
+                        {
+                            <option value="@provider.Id">@provider.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="col">
+                <div class="mb-1">
+                    <input type="text" class="form-control" placeholder="Контракт" id="number">
+                </div>
+            </div>
+            <div class="col">
+                <div class="mb-1">
+                    <input type="text" class="form-control" placeholder="Заказ" id="itemName">
+                </div>
+            </div>
+            <div class="col">
+                <div class="mb-1">
+                    <input type="text" class="form-control" placeholder="Ед." id="itemUnit">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-group mb-1">
+                <span class="input-group-text" id="basic-addon1">С </span>
+                <input type="date" class="form-control" placeholder="C" value="@DateTime.Now.AddMonths(-1).ToString("yyyy-MM-dd")" id="from">
+                <span class="input-group-text" id="basic-addon1">По </span>
+                <input type="date" class="form-control" placeholder="По" value="@DateTime.Now.ToString("yyyy-MM-dd")" id="to">
+            </div>
+        </div>
+    </div>
+
+    <a type="button" class="btn btn-sm btn-outline-secondary" onclick="getTableData()">Отфильтровать</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-sm" id="table">
+        <thead>
+            <tr>
+                <th scope="col" data-field="id">#</th>
+                <th scope="col" data-field="date" data-formatter="dateFormatter">Дата</th>
+                <th scope="col" data-field="number">Номер</th>
+                <th scope="col" data-field="provider.name">Поставщик</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="modalShow" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Форма просмотра</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">ID</label>
+                    <div class="col">
+                        <input type="text" class="form-control-plaintext" id="inputId" readonly>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">Дата</label>
+                    <div class="col">
+                        <input type="date" class="form-control-plaintext" id="inputDate" readonly>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">Контракт</label>
+                    <div class="col">
+                        <input type="text" class="form-control-plaintext" id="inputNumber" readonly>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-sm-2 col-form-label">Поставщик</label>
+                    <div class="col">
+                        <input type="text" class="form-control-plaintext" id="inputProvider" readonly>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <table class="table table-striped table-sm" id="modalTable">
+                        <thead>
+                            <tr>
+                                <th scope="col" data-field="name">Наименование</th>
+                                <th scope="col" data-field="quantity">Количество</th>
+                                <th scope="col" data-field="unit">Ед.</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" onclick="deleteOrder()">Удалить</button>
+                <button type="button" class="btn btn-primary" onclick="redirectToEdit()">Редактировать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var select = document.getElementById("providersSelect")
+        var table = $('#table')
+        var modal = new bootstrap.Modal(document.getElementById('modalShow'))
+        var modalTable = $('#modalTable')
+
+        $(function () {
+            table.bootstrapTable({ onClickRow: onSelectTableRow });
+            modalTable.bootstrapTable();
+            getTableData();
+        })
+
+        function dateFormatter(value) {
+            return moment(value).format("DD.MM.YY HH:MM");
+        }
+
+        function getTableData() {
+            var data = {
+                providers: $('#providersSelect').selectpicker('val'),
+                number: $('#number').val(),
+                from: moment($('#from').val()).toISOString(true),
+                to: moment($('#to').val()).toISOString(true),
+                itemName: $('#itemName').val(),
+                itemUnit: $('#itemUnit').val()
+            }
+
+            fetch(`/api/table`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then((response) => {
+                    return response.json();
+                })
+                .then((json) => {
+                    console.log(json);
+                    if (json.ok) {
+                        table.bootstrapTable('load', json.result.list);
+                    }
+                });
+        }
+
+        function onSelectTableRow(row) {
+            modal.show();
+
+            fetch(`/api/get?id=${row.id}`)
+                .then((response) => {
+                    return response.json();
+                })
+                .then((json) => {
+                    console.log(json);
+                    if (json.ok) {
+                        fillShowModal(json.result);
+                    }
+                });
+        }
+
+        function redirectToEdit() {
+            let id = $('#inputId').val();
+            document.location.href = document.location.origin + `/orders/update/${id}`;
+        }
+
+        function deleteOrder() {
+            let id = $('#inputId').val();
+            fetch(`/api/remove?id=${id}`)
+                .then((response) => {
+                    return response.json();
+                })
+                .then((json) => {
+                    console.log(json);
+                    if (json.ok) {
+                        alert('Успешно удалено');
+                        getTableData();
+                    }
+                });
+        }
+
+        function fillShowModal(data) {
+            $('#inputId').val(data.id);
+            $('#inputDate').val(moment(data.date).format('YYYY-MM-DD'));
+            $('#inputNumber').val(data.number);
+            $('#inputProvider').val(data.provider.name);
+            modalTable.bootstrapTable('load', data.items);
+        }
+    </script>
+}
